@@ -1,0 +1,49 @@
+#+TITLE:  Draken
+#+AUTHOR: Chris Smeele
+
+Draken is a C++ continuation-passing-style hobby template metaprogramming library,
+inspired by [[https://github.com/kvasir-io/mpl][Kvasir::mpl]],
+but built from the ground up.
+
+There is no cross-over into runtime - all algorithms are to be run at
+compile-time, resulting in types that may be instantiatable at runtime.
+
+** Project goal
+
+/Re-inventing the wheel in order to understand what makes bicycles roll./
+
+** Design, style, documentation, scope
+
+1. I made this library mostly for my hobby and to learn more about template
+   metaprogramming. This being a personal learning project, I do not
+   particularly care about production-level usability.
+   There is currently no external documentation, no extensive tests,
+   and no compatibility guarantees between library revisions.
+   The library is only tested against recent clang and gcc.
+2. We completely ignore the possible existence of a C++ standard library.
+   This means that we do not re-use any types or functions from the standard
+   library, and we additionally will NOT strive to use C++ standard library
+   terminology for our functions and types (e.g. for sequence operations).
+3. Compile-time performance is nice, but as long as I do not run into any
+   performance issues while using this library for my own projects, I will
+   not add optimizations that reduce legibility of the library source code.
+   I like algo implementations to be straight-forward and easy to read
+   (insofar template code can be considered readable, of course ;-).
+4. Features are added on an as-needed/when-needed basis. This library is
+   always "complete" in the sense that it's never missing a feature that I
+   personally need to use at a given point in time.
+
+** Examples
+
+TODO. But see the ad-hoc tests at the bottom of [[./draken.hh]] for some
+indication of what using the library looks like.
+
+** Authors
+
+- [[https://github.com/cjsmeele][Chris Smeele]]
+
+** License
+
+GPLv3. It's "restrictive" for developers, but I don't particularly care about
+that right now, as this is just a hobby project that I decided to put on Github
+for version control and stuff :-)

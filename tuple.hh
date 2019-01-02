@@ -25,7 +25,7 @@ struct pair {
     B b;
 };
 
-// XXX: This stuff is all WIP.
+// XXX: This stuff is all unfinished/WIP work, please don't look too closely.
 
 namespace tuple_impl {
 

@@ -17,20 +17,25 @@
  */
 #pragma once
 
-// Draken is a continuation-passing-style template metaprogramming library,
-// inspired by Kvasir MPL ( https://github.com/kvasir-io/mpl ), but built from
-// the ground up.
+// Draken is a continuation-passing-style hobby template metaprogramming library,
+// inspired by Kvasir::mpl ( https://github.com/kvasir-io/mpl ),
+// but built from the ground up.
 //
 // There is no cross-over into runtime - all algorithms are to be run at
 // compile-time, resulting in types that may be instantiatable at runtime.
+//
+// This is the project goal:
+//
+//   Re-inventing the wheel in order to understand what makes bicycles roll.
 //
 // Some information on design, style and documentation:
 //
 // 1. I made this library mostly for my hobby and to learn more about template
 //    metaprogramming. This being a personal learning project, I do not
 //    particularly care about production-level usability.
-//    There is currently no external documentation, and no compatibility
-//    guarantees between library revisions.
+//    There is currently no external documentation, no extensive tests,
+//    and no compatibility guarantees between library revisions.
+//    The library is only tested against recent clang and gcc.
 //
 // 2. We completely ignore the possible existence of a C++ standard library.
 //    This means that we do not re-use any types or functions from the standard
@@ -43,6 +48,10 @@
 //    I like algo implementations to be straight-forward and easy to read
 //    (insofar template code can be considered readable, of course ;-).
 //
+// 4. Features are added on an as-needed/when-needed basis. This library is
+//    always "complete" in the sense that it's never missing a feature that I
+//    personally need to use at a given point in time.
+
 // Let's call our namespace tt ("template toolkit") for now.
 
 namespace tt {
@@ -96,11 +105,13 @@ struct const_ { template<typename... Ts> using type = typename C::template type<
 template<typename F, typename... Ts>
 using run = typename F::template type<Ts...>;
 
-// Lifts a template with fixed arguments into a metafunction.
+// Lifts a template with non-pack arguments into a metafunction that is run<>-able.
 // (needed because a pack cannot be expanded into non-pack parameters)
 template<template<typename...> typename E,
          typename C = return_one>
 struct lift_rigid {
+    // Specializations can be added as needed, when templates with more fixed
+    // arguments need to be called.
     template<typename... Ts>
     struct impl;
     template<typename T1, typename... Ts>
@@ -119,7 +130,8 @@ struct lift_rigid {
     struct impl<T1,T2,T3,T4,T5,T6,T7,Ts...> { using type = E<T1,T2,T3,T4,T5,T6,T7,Ts...>; };
     template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename... Ts>
     struct impl<T1,T2,T3,T4,T5,T6,T7,T8,Ts...> { using type = E<T1,T2,T3,T4,T5,T6,T7,T8,Ts...>; };
-    // Run this Vim macro on the "template<..." line above to add a new specialization.
+
+    // Run this Vim macro on the last "template<..." line above to add a new specialization.
     // 2yyjp^f>F,v2bhyf,pbj^f>F,byf,f,pb$F>F,byf,f,pbk^
 
     template<typename... Ts> using type = typename C::template type<typename impl<Ts...>::type>;
@@ -323,9 +335,6 @@ struct take {
     template<ull I, typename... As>
     struct impl<I, list<As...>> { using type = typename C::template type<As...>; };
 
-    // Separate specialization to remove ambiguity with the other case below.
-    template<typename... As>
-    struct impl<0, list<As...>>           { using type = typename C::template type<As...>; };
     template<typename... As, typename T, typename... Ts>
     struct impl<0, list<As...>, T, Ts...> { using type = typename C::template type<As...>; };
 
@@ -421,11 +430,13 @@ struct fork {
 // }}}
 // Algorithms {{{
 
-template<typename T1, typename T2> using max = run<if_<ge<>, const_<T1>, const_<T2>>, T1, T2>;
-template<typename T1, typename T2> using min = run<if_<le<>, const_<T1>, const_<T2>>, T1, T2>;
+template<typename T1, typename T2> using max_ = run<if_<ge<>, const_<T1>, const_<T2>>, T1, T2>;
+template<typename T1, typename T2> using min_ = run<if_<le<>, const_<T1>, const_<T2>>, T1, T2>;
+template<typename C = return_one>  using max  = lift_rigid<max_, C>;
+template<typename C = return_one>  using min  = lift_rigid<min_, C>;
 
-template<typename C = return_one> using maximum = foldl<lift_rigid<max>, uint<0>, C>;
-template<typename C = return_one> using minimum = foldl<lift_rigid<min>, uint<0>, C>;
+template<typename C = return_one> using maximum = foldl<max<>, uint<0>, C>;
+template<typename C = return_one> using minimum = foldl<min<>, uint<0>, C>;
 
 template<typename T> using sizeof__  = uint< sizeof(T)>;
 template<typename T> using alignof__ = uint<alignof(T)>;
@@ -469,6 +480,7 @@ namespace {
     // indexing
     ASSERT_EQ(t1, run<nth<uint<0>>, t1,t2,t3>)
     ASSERT_EQ(t2, run<nth<uint<1>>, t1,t2,t3>)
+    ASSERT_EQ(t3, run<nth<uint<2>>, t1,t2,t3>)
 
     // branching
     ASSERT_EQ(uint<0xfeedbeef>,
@@ -478,10 +490,9 @@ namespace {
                     uint<2>,
                     uint<3>>)
 
-    ASSERT_EQ(uint<10>,
-              run<iota1<uint<4>, sum<>>>)
-    ASSERT_EQ(uint<6>,
-              run<iota0<uint<4>, sum<>>>)
+    // integer sequences
+    ASSERT_EQ(uint<10>, run<iota1<uint<4>, sum<>>>)
+    ASSERT_EQ(uint< 6>, run<iota0<uint<4>, sum<>>>)
 
     // TODO: Rewrite tests below:
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Chris Smeele
+/* Copyright (c) 2018, 2019, Chris Smeele
  *
  * This file is part of Draken.
  *
@@ -18,25 +18,34 @@
 #pragma once
 
 // Draken is a continuation-passing-style template metaprogramming library,
-// inspired by Kvasir MPL ( https://github.com/kvasir-io/mpl ), but built from the ground up.
+// inspired by Kvasir MPL ( https://github.com/kvasir-io/mpl ), but built from
+// the ground up.
 //
 // There is no cross-over into runtime - all algorithms are to be run at
 // compile-time, resulting in types that may be instantiatable at runtime.
 //
-// Design goals are, in order of importance:
-// 1. Implementation of algorithms should be straight-forward (for FP-adepts).
-// 2. Compile-time performance is nice, but does not trump (1.).
+// Some information on design, style and documentation:
+//
+// 1. I made this library mostly for my hobby and to learn more about template
+//    metaprogramming. This being a personal learning project, I do not
+//    particularly care about production-level usability.
+//    There is currently no external documentation, and no compatibility
+//    guarantees between library revisions.
+//
+// 2. We completely ignore the possible existence of a C++ standard library.
+//    This means that we do not re-use any types or functions from the standard
+//    library, and we additionally will NOT strive to use C++ standard library
+//    terminology for our functions and types (e.g. for sequence operations).
+//
+// 3. Compile-time performance is nice, but as long as I do not run into any
+//    performance issues while using this library for my own projects, I will
+//    not add optimizations that reduce legibility of the library source code.
+//    I like algo implementations to be straight-forward and easy to read
+//    (insofar template code can be considered readable, of course ;-).
 //
 // Let's call our namespace tt ("template toolkit") for now.
 
 namespace tt {
-
-// Apparently I goofed while writing this by depending on clang for error reporting.
-// The C++ standard does not allow for explicit specialization within template
-// classes, so various "impl" structs below break in compliant compilers.
-// clang doesn't care however, even with -Wall -Wextra -pedantic.
-//
-// I guess I should start rewriting stuff... :-(
 
 // Compile-time values {{{
 
@@ -80,32 +89,6 @@ struct identity { template<typename... Ts> using type = typename C::template typ
 template<typename T, typename C = return_one>
 struct const_ { template<typename... Ts> using type = typename C::template type<T>; };
 
-// // Lifts a template with fixed arguments into a metafunction.
-// // (needed because a pack cannot be expanded into non-pack parameters)
-// template<typename F>
-// struct lift_rigid_ {
-//     // (macro no longer works)
-//     // 0f>F,BBy2WWWPBbywf>f>bbPa,f>f>bbPa,
-//     template<typename... Ts>
-//     struct impl;
-//     // template<typename... Ts>
-//     // struct impl        { using type = typename F::template type<Ts...>; };
-//     template<typename T1, typename... Ts>
-//     struct impl<T1,Ts...> { using type = typename F::template type<T1,Ts...>; };
-//     template<typename T1, typename T2, typename... Ts>
-//     struct impl<T1,T2,Ts...> { using type = typename F::template type<T1,T2,Ts...>; };
-//     template<typename T1, typename T2, typename T3, typename... Ts>
-//     struct impl<T1,T2,T3,Ts...> { using type = typename F::template type<T1,T2,T3,Ts...>; };
-//     template<typename T1, typename T2, typename T3, typename T4, typename... Ts>
-//     struct impl<T1,T2,T3,T4,Ts...> { using type = typename F::template type<T1,T2,T3,T4,Ts...>; };
-//     template<typename T1, typename T2, typename T3, typename T4, typename T5, typename... Ts>
-//     struct impl<T1,T2,T3,T4,T5,Ts...> { using type = typename F::template type<T1,T2,T3,T4,T5,Ts...>; };
-//     template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename... Ts>
-//     struct impl<T1,T2,T3,T4,T5,T6,Ts...> { using type = typename F::template type<T1,T2,T3,T4,T5,T6,Ts...>; };
-
-//     template<typename... Ts> using type = typename impl<Ts...>::type;
-// };
-
 // }}}
 // Function tooling {{{
 
@@ -113,11 +96,11 @@ struct const_ { template<typename... Ts> using type = typename C::template type<
 template<typename F, typename... Ts>
 using run = typename F::template type<Ts...>;
 
+// Lifts a template with fixed arguments into a metafunction.
+// (needed because a pack cannot be expanded into non-pack parameters)
 template<template<typename...> typename E,
          typename C = return_one>
 struct lift_rigid {
-    // (macro no longer works)
-    // 0f>F,BBy2WWWPBbywf>f>bbPa,f>f>bbPa,
     template<typename... Ts>
     struct impl;
     template<typename T1, typename... Ts>
@@ -132,6 +115,12 @@ struct lift_rigid {
     struct impl<T1,T2,T3,T4,T5,Ts...> { using type = E<T1,T2,T3,T4,T5,Ts...>; };
     template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename... Ts>
     struct impl<T1,T2,T3,T4,T5,T6,Ts...> { using type = E<T1,T2,T3,T4,T5,T6,Ts...>; };
+    template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename... Ts>
+    struct impl<T1,T2,T3,T4,T5,T6,T7,Ts...> { using type = E<T1,T2,T3,T4,T5,T6,T7,Ts...>; };
+    template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename... Ts>
+    struct impl<T1,T2,T3,T4,T5,T6,T7,T8,Ts...> { using type = E<T1,T2,T3,T4,T5,T6,T7,T8,Ts...>; };
+    // Run this Vim macro on the "template<..." line above to add a new specialization.
+    // 2yyjp^f>F,v2bhyf,pbj^f>F,byf,f,pb$F>F,byf,f,pbk^
 
     template<typename... Ts> using type = typename C::template type<typename impl<Ts...>::type>;
 };
@@ -139,27 +128,27 @@ struct lift_rigid {
 // }}}
 // Conditionals {{{
 
+template<typename B> struct if_impl;
+template<> struct if_impl<true_> {
+    template<typename F1,
+             typename F2,
+             typename... Ts>
+    using type = run<F1,Ts...>;
+};
+template<> struct if_impl<false_> {
+    template<typename F1,
+             typename F2,
+             typename... Ts>
+    using type = run<F2,Ts...>;
+};
+
 // Conditionally continues in a then or else branch.
 template<typename FP,
          typename Then,
          typename Else = return_one>
 struct if_ {
-    template<typename B> struct impl;
-    template<> struct impl<true_> {
-        template<typename F1,
-                 typename F2,
-                 typename... Ts>
-        using type = run<F1,Ts...>;
-    };
-    template<> struct impl<false_> {
-        template<typename F1,
-                 typename F2,
-                 typename... Ts>
-        using type = run<F2,Ts...>;
-    };
-
     template<typename... Ts>
-    using type = typename impl<run<FP,Ts...>>::template type<Then, Else, Ts...>;
+    using type = typename if_impl<run<FP,Ts...>>::template type<Then, Else, Ts...>;
 };
 
 // }}}
@@ -168,6 +157,7 @@ struct if_ {
 // Maps the given metafunction over its input.
 template<typename F, typename C = return_list>
 struct map {
+    // Simply run the given function on each T.
     template<typename... Ts>
     using type = typename C::template type<run<F,Ts>...>;
 };
@@ -233,11 +223,11 @@ struct enumerate {
 
 #define DEF_BINARY_PRED(name, op) \
     template<typename T1, typename T2> using name##_ = bool_<((T1::value) op (T2::value))>; \
-    using name = lift_rigid<name##_>;
+    template<typename C = return_one>  using name = lift_rigid<name##_>;
 
 #define DEF_UNARY_PRED(name, op) \
     template<typename T1> using name##_ = bool_<(op (T1::value))>; \
-    using name = lift_rigid<name##_>;
+    template<typename C = return_one>  using name = lift_rigid<name##_>;
 
 DEF_BINARY_PRED(le, <=)
 DEF_BINARY_PRED(lt, < )
@@ -248,9 +238,11 @@ DEF_BINARY_PRED(ne, !=)
 
 template<typename N> constexpr bool fneven_(N x) { return (x & 1) == 0; }
 template<typename N> constexpr bool fnodd_ (N x) { return (x & 1) == 1; }
+template<typename N> constexpr bool fnnot_ (N x) { return !x; }
 
 DEF_UNARY_PRED(even, fneven_)
 DEF_UNARY_PRED(odd,  fnodd_)
+DEF_UNARY_PRED(not_, fnnot_)
 
 #undef DEF_UNARY_PRED
 #undef DEF_BINARY_PRED
@@ -301,11 +293,13 @@ DEF_BINOP(bin_shl, <<)
 DEF_UNOP(bin_negate, ~)
 DEF_UNOP(logical_negate, !)
 
-template<typename N> constexpr ull fnabs_(N x) { return x < 0 ? -x : x; }
-template<typename N> constexpr sll fnsgn_(N x) { return x < 0 ? -1 : 1; }
+template<typename N> constexpr ull fnabs_ (N x) { return x < 0 ? -x : x; }
+template<typename N> constexpr sll fnsgn_ (N x) { return x < 0 ? -1 : 1; }
+template<typename N> constexpr sll fnsucc_(N x) { return x + 1; }
 
-DEF_UNOP(sgn, fnsgn_)
-DEF_UNOP(abs, fnabs_)
+DEF_UNOP(sgn,  fnsgn_)
+DEF_UNOP(abs,  fnabs_)
+DEF_UNOP(succ, fnsucc_)
 
 template<typename C = return_one>
 using negate = prepend<sint<(-1)>, mul<C>>;
@@ -329,7 +323,7 @@ struct take {
     template<ull I, typename... As>
     struct impl<I, list<As...>> { using type = typename C::template type<As...>; };
 
-    // Separate specializations to remove ambiguity with the other case below.
+    // Separate specialization to remove ambiguity with the other case below.
     template<typename... As>
     struct impl<0, list<As...>>           { using type = typename C::template type<As...>; };
     template<typename... As, typename T, typename... Ts>
@@ -351,9 +345,6 @@ struct drop {
     template<ull I>
     struct impl<I> { using type = typename C::template type<>; };
 
-    // Separate specializations to remove ambiguity with the other case below.
-    // template<>
-    // struct impl<0>           { using type = typename C::template type<>; };
     template<typename T, typename... Ts>
     struct impl<0, T, Ts...> { using type = typename C::template type<T, Ts...>; };
 
@@ -384,6 +375,9 @@ template<typename C = return_one> using product = foldl<mul<>, uint<1>, C>;
 template<typename C = return_one>
 struct size { template<typename... Ts> using type = uint<sizeof...(Ts)>; };
 
+// Alternative version: pure, and horribly inefficient.
+// template<typename C = return_one> using size = map<const_<uint<1>>, sum<C>>;
+
 template<typename N, typename C = return_one>
 struct nth {
     template<typename... Ts>
@@ -398,8 +392,21 @@ struct nth {
     using type = typename impl<Ts...>::type;
 };
 
-// Alternative version: pure, and horribly inefficient.
-// template<typename C = return_one> using size = map<const_<uint<1>>, sum<C>>;
+// Generate integer sequences.
+template<typename N, typename C = return_list>
+struct iota0 {
+    template<ull I, typename... Ns>
+    struct impl           { using type = typename impl<(I-1),uint<(I-1)>,Ns...>::type; };
+    template<typename... Ns>
+    struct impl<0, Ns...> { using type = typename C::template type<Ns...>; };
+
+    template<typename... Ts>
+    using type = typename impl<N::value>::type;
+};
+
+// Generate integer sequences starting at 1.
+template<typename N, typename C = return_list>
+using iota1 = iota0<N,map<increment<>,C>>;
 
 // }}}
 // Advanced operators {{{
@@ -414,8 +421,8 @@ struct fork {
 // }}}
 // Algorithms {{{
 
-template<typename T1, typename T2> using max = run<if_<ge, const_<T1>, const_<T2>>, T1, T2>;
-template<typename T1, typename T2> using min = run<if_<le, const_<T1>, const_<T2>>, T1, T2>;
+template<typename T1, typename T2> using max = run<if_<ge<>, const_<T1>, const_<T2>>, T1, T2>;
+template<typename T1, typename T2> using min = run<if_<le<>, const_<T1>, const_<T2>>, T1, T2>;
 
 template<typename C = return_one> using maximum = foldl<lift_rigid<max>, uint<0>, C>;
 template<typename C = return_one> using minimum = foldl<lift_rigid<min>, uint<0>, C>;
@@ -441,8 +448,10 @@ namespace {
 #define TEST_NAME PASTE1(test__, __LINE__)
 
 // va args needed because preproc will not parse ',' within template parameters correctly :-)
+// (yes, this is macro abuse, but it's sufficient for now)
 #define ASSERT_EQ(type, ...) constexpr type TEST_NAME [[maybe_unused]] = __VA_ARGS__ {};
 
+    // take and drop
     ASSERT_EQ(list<  >, run<take<uint<5>>>)
     ASSERT_EQ(list<  >, run<take<uint<0>>>)
     ASSERT_EQ(list<  >, run<take<uint<0>>, t1>)
@@ -457,15 +466,22 @@ namespace {
     ASSERT_EQ(uint<2>, run<drop<uint<1>, take<uint<2>, sum<>>>,
                            uint<999>, uint<1>, uint<1>, uint<999>>)
 
+    // indexing
     ASSERT_EQ(t1, run<nth<uint<0>>, t1,t2,t3>)
     ASSERT_EQ(t2, run<nth<uint<1>>, t1,t2,t3>)
 
+    // branching
     ASSERT_EQ(uint<0xfeedbeef>,
-              run<if_<ge,
+              run<if_<ge<>,
                       const_<uint<0xdeaddead>>,
                       const_<uint<0xfeedbeef>>>,
                     uint<2>,
                     uint<3>>)
+
+    ASSERT_EQ(uint<10>,
+              run<iota1<uint<4>, sum<>>>)
+    ASSERT_EQ(uint<6>,
+              run<iota0<uint<4>, sum<>>>)
 
     // TODO: Rewrite tests below:
 
@@ -474,27 +490,27 @@ namespace {
 
     constexpr uint<5> _5 = run<maximum<>, uint<2>, uint<5>, uint<4>> {};
 
-    constexpr list<uint<2>, uint<4>> _6 = run<filter<even>,
+    constexpr list<uint<2>, uint<4>> _6 = run<filter<even<>>,
                                               uint<2>, uint<5>, uint<4>> {};
-    constexpr list<uint<3>, uint<5>> _7 = run<filter<even, map<increment<>>>,
+    constexpr list<uint<3>, uint<5>> _7 = run<filter<even<>, map<increment<>>>,
                                               uint<2>, uint<5>, uint<4>> {};
 
-    constexpr uint<10> _8 = run<filter<odd,
+    constexpr uint<10> _8 = run<filter<odd<>,
                                        map<increment<>,
                                            sum<>>>,
                                 uint<3>, uint<5>, uint<4>> {};
 
-    constexpr sint<(-10)> _9 = run<unlist<filter<odd,
+    constexpr sint<(-10)> _9 = run<unlist<filter<odd<>,
                                                  map<increment<>,
                                                      sum<negate<>>>>>,
                                    list<uint<3>, uint<5>>, uint<4>> {};
 
-    using double_if_even = if_<even, prepend<uint<2>, mul<>>>;
+    using double_if_even = if_<even<>, prepend<uint<2>, mul<>>>;
 
     ASSERT_EQ(sint<(- 5)>, run<double_if_even, sint<(- 5)>>)
     ASSERT_EQ(sint<(-20)>, run<double_if_even, sint<(-10)>>)
 
-    using doubled_plus_incremented = fork<add<>,
+    using doubled_plus_incremented = fork<add<>, // <- is run on the results of the branches below.
                                           prepend<uint<2>, mul<>>,
                                           increment<>>;
 

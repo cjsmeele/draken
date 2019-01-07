@@ -264,6 +264,12 @@ using join2  = lift_rigid<join2_, C>;
 template<typename C = return_list>
 using join = foldl<join2<unlist<>>, list<>, unlist<C>>;
 
+template<typename C = return_one>
+struct size {
+    template<typename... Ts>
+    using type = typename C::template type<uint<sizeof...(Ts)>>;
+};
+
 // }}}
 // Predicates {{{
 
@@ -280,6 +286,8 @@ template<typename T>              struct is_list__              { static constex
 template<typename... Ts>          struct is_list__<list<Ts...>> { static constexpr bool value = true;  };
 template<typename T>              using  is_list_ = bool_<is_list__<T>::value>;
 template<typename C = return_one> using  is_list  = lift_rigid<is_list_, C>;
+
+template<typename C = return_one> using  empty = size<is<uint<0>, C>>;
 
 // Integer predicates {{{
 
@@ -431,9 +439,6 @@ struct tail {
 
 template<typename C = return_one> using sum     = foldl<add<>, uint<0>, C>;
 template<typename C = return_one> using product = foldl<mul<>, uint<1>, C>;
-
-template<typename C = return_one>
-struct size { template<typename... Ts> using type = uint<sizeof...(Ts)>; };
 
 template<typename N, typename C = return_one>
 struct nth {

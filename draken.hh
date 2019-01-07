@@ -82,7 +82,10 @@ struct return_list { template<typename... Ts> using type = list<Ts...>; };
 // (does not touch any other item in the input pack)
 template<typename C = return_list>
 struct unlist {
-    template<typename T,     typename... Ys> struct impl;
+    // If it's not a list, don't do anything.
+    template<typename T, typename... Ys> struct impl {
+        using type = typename C::template type<T, Ys...>;
+    };
     template<typename... Ts, typename... Ys> struct impl<list<Ts...>, Ys...> {
         using type = typename C::template type<Ts..., Ys...>;
     };
@@ -135,6 +138,15 @@ struct lift_rigid {
     // 2yyjp^f>F,v2bhyf,pbj^f>F,byf,f,pb$F>F,byf,f,pbk^
 
     template<typename... Ts> using type = typename C::template type<typename impl<Ts...>::type>;
+};
+
+// Add a continuation to a metafunction.
+// (not sure about the terminology here)
+template<typename F,
+         typename C>
+struct after {
+    template<typename... Ts>
+    using type = typename C::template type<run<F, Ts...>>;
 };
 
 // }}}
@@ -233,13 +245,26 @@ struct enumerate {
 // }}}
 // Predicates {{{
 
+// Type equality.
+template<typename T1, typename T2> struct equal__         { static constexpr bool value = false; };
+template<typename T1>              struct equal__<T1, T1> { static constexpr bool value = true;  };
+template<typename T1, typename T2> using  equal_ = bool_<equal__<T1,T2>::value>;
+template<typename C = return_one>  using  equal  = lift_rigid<equal_, C>;
+
+template<typename T>              struct is_list__              { static constexpr bool value = false; };
+template<typename... Ts>          struct is_list__<list<Ts...>> { static constexpr bool value = true;  };
+template<typename T>              using  is_list_ = bool_<is_list__<T>::value>;
+template<typename C = return_one> using  is_list  = lift_rigid<is_list_, C>;
+
+// Integer predicates {{{
+
 #define DEF_BINARY_PRED(name, op) \
     template<typename T1, typename T2> using name##_ = bool_<((T1::value) op (T2::value))>; \
-    template<typename C = return_one>  using name = lift_rigid<name##_>;
+    template<typename C = return_one>  using name = lift_rigid<name##_, C>;
 
 #define DEF_UNARY_PRED(name, op) \
     template<typename T1> using name##_ = bool_<(op (T1::value))>; \
-    template<typename C = return_one>  using name = lift_rigid<name##_>;
+    template<typename C = return_one>  using name = lift_rigid<name##_, C>;
 
 DEF_BINARY_PRED(le, <=)
 DEF_BINARY_PRED(lt, < )
@@ -260,6 +285,7 @@ DEF_UNARY_PRED(not_, fnnot_)
 #undef DEF_BINARY_PRED
 
 // }}}
+// }}}
 // Basic pack operations {{{
 
 template<typename T, typename C = return_list>
@@ -267,6 +293,19 @@ struct prepend { template<typename... Ts> using type = typename C::template type
 
 template<typename T, typename C = return_list>
 struct append  { template<typename... Ts> using type = typename C::template type<Ts..., T>; };
+
+template<typename FP, typename F, typename C = return_list>
+using replace = map<if_<FP, F>, C>;
+
+template<typename T1, typename T2>
+using join2_ = run<unlist<prepend<T1, unlist<>>>, T2>;
+
+template<typename C = return_list>
+using join2  = lift_rigid<join2_, C>;
+
+// Shallow unlist of all lists in the input pack.
+template<typename C = return_list>
+using join = foldl<join2<unlist<>>, list<>, unlist<C>>;
 
 // }}}
 // Integer operations {{{
@@ -384,9 +423,6 @@ template<typename C = return_one> using product = foldl<mul<>, uint<1>, C>;
 template<typename C = return_one>
 struct size { template<typename... Ts> using type = uint<sizeof...(Ts)>; };
 
-// Alternative version: pure, and horribly inefficient.
-// template<typename C = return_one> using size = map<const_<uint<1>>, sum<C>>;
-
 template<typename N, typename C = return_one>
 struct nth {
     template<typename... Ts>
@@ -417,6 +453,20 @@ struct iota0 {
 template<typename N, typename C = return_list>
 using iota1 = iota0<N,map<increment<>,C>>;
 
+// Insert a type at a given position in a pack.
+template<typename I, typename T, typename C = return_list>
+struct insert {
+    template<typename X, typename Y>
+    struct impl;
+    template<typename... Xs, typename... Ys>
+    struct impl<list<Xs...>, list<Ys...>> {
+        using type = typename C::template type<Xs..., T, Ys...>;
+    };
+    template<typename... Ts>
+    using type = typename impl<run<take<I>, Ts...>,
+                               run<drop<I>, Ts...>>::type;
+};
+
 // }}}
 // Advanced operators {{{
 
@@ -442,6 +492,34 @@ template<typename T> using sizeof__  = uint< sizeof(T)>;
 template<typename T> using alignof__ = uint<alignof(T)>;
 template<typename C = return_one> using sizeof_  = lift_rigid<sizeof__,  C>;
 template<typename C = return_one> using alignof_ = lift_rigid<alignof__, C>;
+
+// Partition a pack into two lists, based on a predicate.
+template<typename FP, typename C = return_list>
+using partition = fork<C,
+                       filter<FP>,
+                       filter<after<FP, not_<>>>>;
+
+// Insertion sort.
+template<typename C = return_list> struct sort {
+
+    template<typename T, typename... Ts>
+    using insert = run<partition<append<T, le<>>
+                                ,tt::insert<uint<1>, list<T>
+                                           ,join<>>>
+                      ,Ts...>;
+
+    template<typename A, typename... Ts>
+    struct impl;
+    template<typename... A>
+    struct impl<list<A...>> { using type = typename C::template type<A...>; };
+    template<typename... A, typename T, typename... Ts>
+    struct impl<list<A...>, T, Ts...> {
+        using type = typename impl<insert<T, A...>, Ts...>::type;
+    };
+
+    template<typename... Ts>
+    using type = typename impl<list<>, Ts...>::type;
+};
 
 // }}}
 // Ad-hoc tests {{{
@@ -527,6 +605,29 @@ namespace {
 
     ASSERT_EQ(sint<(25)>, run<doubled_plus_incremented,
                               sint<(8)>>)
+
+    constexpr list<list<uint<1>, uint<3>>
+                  ,list<uint<0>, uint<2>>> _parted
+              = run<iota0<uint<4>, partition<odd<>>>> {};
+
+    constexpr list<uint<1>, uint<2>, uint<3>> _10
+              = run<insert<uint<0>, uint<1>>, uint<2>, uint<3>> {};
+    constexpr list<uint<1>, uint<2>, uint<3>> _11
+              = run<insert<uint<1>, uint<2>>, uint<1>, uint<3>> {};
+    constexpr list<uint<1>, uint<2>, uint<3>> _12
+              = run<insert<uint<2>, uint<3>>, uint<1>, uint<2>> {};
+
+    constexpr list<uint<1>, uint<2>, uint<3>, uint<4>> _joined
+              = run<join<>, list<uint<1>>, uint<2>, list<uint<3>, uint<4>>> {};
+
+    constexpr list<uint<1>, uint<2>, uint<3>> _sorted1
+              = run<sort<>, uint<1>, uint<2>, uint<3>> {};
+    constexpr list<uint<1>, uint<2>, uint<3>> _sorted2
+              = run<sort<>, uint<1>, uint<3>, uint<2>> {};
+    constexpr list<uint<1>, uint<2>, uint<3>> _sorted3
+              = run<sort<>, uint<3>, uint<2>, uint<1>> {};
+    constexpr list<uint<1>, uint<2>, uint<2>, uint<3>> _sorted4
+              = run<sort<>, uint<3>, uint<2>, uint<1>, uint<2>> {};
 
 #undef TEST_NAME
 #undef PASTE1

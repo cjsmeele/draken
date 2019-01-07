@@ -243,6 +243,28 @@ struct enumerate {
 };
 
 // }}}
+// Basic pack operations {{{
+
+template<typename T, typename C = return_list>
+struct prepend { template<typename... Ts> using type = typename C::template type<T, Ts...>; };
+
+template<typename T, typename C = return_list>
+struct append  { template<typename... Ts> using type = typename C::template type<Ts..., T>; };
+
+template<typename FP, typename F, typename C = return_list>
+using replace = map<if_<FP, F>, C>;
+
+template<typename T1, typename T2>
+using join2_ = run<unlist<prepend<T1, unlist<>>>, T2>;
+
+template<typename C = return_list>
+using join2  = lift_rigid<join2_, C>;
+
+// Shallow unlist of all lists in the input pack.
+template<typename C = return_list>
+using join = foldl<join2<unlist<>>, list<>, unlist<C>>;
+
+// }}}
 // Predicates {{{
 
 // Type equality.
@@ -250,6 +272,9 @@ template<typename T1, typename T2> struct equal__         { static constexpr boo
 template<typename T1>              struct equal__<T1, T1> { static constexpr bool value = true;  };
 template<typename T1, typename T2> using  equal_ = bool_<equal__<T1,T2>::value>;
 template<typename C = return_one>  using  equal  = lift_rigid<equal_, C>;
+
+template<typename T, typename C = return_one>
+using is = prepend<T, equal<C>>;
 
 template<typename T>              struct is_list__              { static constexpr bool value = false; };
 template<typename... Ts>          struct is_list__<list<Ts...>> { static constexpr bool value = true;  };
@@ -285,28 +310,6 @@ DEF_UNARY_PRED(not_, fnnot_)
 #undef DEF_BINARY_PRED
 
 // }}}
-// }}}
-// Basic pack operations {{{
-
-template<typename T, typename C = return_list>
-struct prepend { template<typename... Ts> using type = typename C::template type<T, Ts...>; };
-
-template<typename T, typename C = return_list>
-struct append  { template<typename... Ts> using type = typename C::template type<Ts..., T>; };
-
-template<typename FP, typename F, typename C = return_list>
-using replace = map<if_<FP, F>, C>;
-
-template<typename T1, typename T2>
-using join2_ = run<unlist<prepend<T1, unlist<>>>, T2>;
-
-template<typename C = return_list>
-using join2  = lift_rigid<join2_, C>;
-
-// Shallow unlist of all lists in the input pack.
-template<typename C = return_list>
-using join = foldl<join2<unlist<>>, list<>, unlist<C>>;
-
 // }}}
 // Integer operations {{{
 
@@ -354,6 +357,15 @@ DEF_UNOP(succ, fnsucc_)
 
 template<typename C = return_one>
 using negate = prepend<sint<(-1)>, mul<C>>;
+
+struct order_lt {};
+struct order_eq {};
+struct order_gt {};
+
+template<typename C = return_one>
+using cmp = if_<lt<>, const_<order_lt, C>,
+            if_<gt<>, const_<order_gt, C>,
+                      const_<order_eq, C>>>;
 
 #undef DEF_UNOP
 #undef DEF_BINOP
@@ -500,10 +512,13 @@ using partition = fork<C,
                        filter<after<FP, not_<>>>>;
 
 // Insertion sort.
-template<typename C = return_list> struct sort {
+template<typename F, typename C = return_list> struct sort_by {
+
+    template<typename T>
+    using pred = append<T, after<F, is<order_lt>>>;
 
     template<typename T, typename... Ts>
-    using insert = run<partition<append<T, le<>>
+    using insert = run<partition<pred<T>
                                 ,tt::insert<uint<1>, list<T>
                                            ,join<>>>
                       ,Ts...>;
@@ -520,6 +535,14 @@ template<typename C = return_list> struct sort {
     template<typename... Ts>
     using type = typename impl<list<>, Ts...>::type;
 };
+
+// Sort integer lists.
+template<typename C = return_list>
+using sort = sort_by<cmp<>, C>;
+
+// Sort on an integer property (provided by a metafunction).
+template<typename F, typename C = return_list>
+using sort_on = sort_by<map<F, cmp<>>, C>;
 
 // }}}
 // Ad-hoc tests {{{
@@ -628,6 +651,9 @@ namespace {
               = run<sort<>, uint<3>, uint<2>, uint<1>> {};
     constexpr list<uint<1>, uint<2>, uint<2>, uint<3>> _sorted4
               = run<sort<>, uint<3>, uint<2>, uint<1>, uint<2>> {};
+
+    constexpr list<sint<3>, sint<(-5)>, sint<8>> _sorted_on_abs
+              = run<sort_on<abs<>>, sint<(-5)>, sint<8>, sint<3>> {};
 
 #undef TEST_NAME
 #undef PASTE1
